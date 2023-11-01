@@ -97,6 +97,21 @@ def display_image(im, tags, filename, path_dest):
     plt.savefig(os.path.join(path_dest, filename))
 
 
+# Function to update database with inference results
+def update_database(args, date_str, tags):
+    # Connect to the SQLite database
+    conn = sqlite3.connect(args.db_path)
+    cursor = conn.cursor()
+
+    # Insert tags into the dates_have_tags table
+    for tag in tags:
+        cursor.execute("INSERT INTO dates_have_tags (date, tag_id) SELECT ?, id FROM tags WHERE tag = ?", (date_str, tag))
+
+    # Commit the changes and close the connection
+    conn.commit()
+    conn.close()
+
+
 # Main function
 def main():
     print('PETA demo of inference code on a single album.')
@@ -119,6 +134,22 @@ def main():
     val_loader = create_dataloader(args)
     print('done\n')
 
+    # Connect to the SQLite database
+    conn = sqlite3.connect(args.db_path)
+    cursor = conn.cursor()
+
+    # Create the tags and dates_have_tags tables
+    cursor.execute("CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, tag TEXT UNIQUE)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS dates_have_tags (date TEXT, tag_id INTEGER, FOREIGN KEY(tag_id) REFERENCES tags(id))")
+
+    # Populate the tags table
+    for class_ in classes_list:
+        cursor.execute("INSERT OR IGNORE INTO tags (tag) VALUES (?)", (class_,))
+
+    # Commit the changes and close the connection
+    conn.commit()
+    conn.close()
+
     # Loop over each date
     # for dt in rrule(DAILY, dtstart=date(2023, 1, 1), until=date.today()):
     for dt in rrule(DAILY, dtstart=date(2023, 1, 20), until=date(2023, 1, 21)):
@@ -132,6 +163,9 @@ def main():
 
         # Inference
         tags, confs = inference(tensor_batch, model, classes_list, args)
+
+        # Update database with inference results
+        update_database(args, date_str, tags)
 
         # Visualization
         print(f"saving image to {os.path.join(args.path_output, 'date_results')} ")
