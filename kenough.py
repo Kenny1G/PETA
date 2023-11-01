@@ -10,6 +10,7 @@ from src.utils.utils import create_dataloader, validate
 import sqlite3
 from datetime import date
 from dateutil.rrule import rrule, DAILY
+from tqdm import tqdm
 
 
 # ----------------------------------------------------------------------
@@ -105,7 +106,7 @@ def update_database(args, date_str, tags):
 
     # Insert tags into the dates_have_tags table
     for tag in tags:
-        cursor.execute("INSERT INTO dates_have_tags (date, tag_id) SELECT ?, id FROM tags WHERE tag = ?", (date_str, tag))
+        cursor.execute("INSERT OR REPLACE INTO dates_have_tags (id, date, tag_id) SELECT ?, ?, id FROM PETA_tags WHERE tag = ?", (f"{date_str}_{tag}", date_str, tag))
 
     # Commit the changes and close the connection
     conn.commit()
@@ -130,31 +131,30 @@ def main():
     print('Class list:', classes_list)
 
     # Setup data loader
-    print('creating data loader...')
-    val_loader = create_dataloader(args)
-    print('done\n')
+    # print('creating data loader...')
+    # val_loader = create_dataloader(args)
+    # print('done\n')
 
     # Connect to the SQLite database
     conn = sqlite3.connect(args.db_path)
     cursor = conn.cursor()
 
     # Create the tags and dates_have_tags tables
-    cursor.execute("CREATE TABLE IF NOT EXISTS tags (id INTEGER PRIMARY KEY, tag TEXT UNIQUE)")
-    cursor.execute("CREATE TABLE IF NOT EXISTS dates_have_tags (date TEXT, tag_id INTEGER, FOREIGN KEY(tag_id) REFERENCES tags(id))")
+    cursor.execute("CREATE TABLE IF NOT EXISTS PETA_tags (id INTEGER PRIMARY KEY, tag TEXT UNIQUE)")
+    cursor.execute("CREATE TABLE IF NOT EXISTS dates_have_tags (id TEXT UNIQUE, date TEXT, tag_id INTEGER, FOREIGN KEY(tag_id) REFERENCES PETA_tags(id))")
 
     # Populate the tags table
     for class_ in classes_list:
-        cursor.execute("INSERT OR IGNORE INTO tags (tag) VALUES (?)", (class_,))
+        cursor.execute("INSERT OR IGNORE INTO PETA_tags (tag) VALUES (?)", (class_,))
 
     # Commit the changes and close the connection
     conn.commit()
     conn.close()
 
-    # Loop over each date
-    # for dt in rrule(DAILY, dtstart=date(2023, 1, 1), until=date.today()):
-    for dt in rrule(DAILY, dtstart=date(2023, 1, 20), until=date(2023, 1, 21)):
+    # Loop over each date with a progress bar
+    for dt in tqdm(rrule(DAILY, dtstart=date(2023, 1, 1), until=date.today()), desc="Processing dates", unit="date"):
+    # for dt in tqdm(rrule(DAILY, dtstart=date(2023, 1, 20), until=date(2023, 1, 21)), desc="Processing dates", unit="date"):
         date_str = dt.strftime("%Y:%m:%d")
-        print(date_str)
         tensor_batch, montage = get_album(args, date_str)
 
         # If no images for a given date, continue to next date
@@ -163,13 +163,13 @@ def main():
 
         # Inference
         tags, confs = inference(tensor_batch, model, classes_list, args)
+        # print(f"Predictions for {date_str} are: {tags}")
 
         # Update database with inference results
         update_database(args, date_str, tags)
 
         # Visualization
-        print(f"saving image to {os.path.join(args.path_output, 'date_results')} ")
-        display_image(montage, tags, date_str + '.jpg', os.path.join(args.path_output, 'date_results'))
+        # display_image(montage, tags, date_str + '.jpg', os.path.join(args.path_output, 'date_results'))
 
     print('Done\n')
 
