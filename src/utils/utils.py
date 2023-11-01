@@ -1,7 +1,7 @@
 import os
 from functools import partial
 import torch
-from fastai2.torch_core import to_detach
+from fastai.torch_core import to_detach
 from torchvision.datasets import Kinetics400
 from torchvision.transforms import transforms
 from torchvision.datasets import ImageFolder

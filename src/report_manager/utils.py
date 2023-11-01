@@ -1,8 +1,8 @@
 import torch
 import numpy as np
 from itertools import chain
-from fastai2.torch_core import to_detach, flatten_check, store_attr
-from fastai2.metrics import Metric
+from fastai.torch_core import to_detach, flatten_check, store_attr
+from fastai.metrics import Metric
 
 class AccumMetricG(Metric):
     "Stores predictions and targets on CPU in accumulate to perform final calculations with `func`."

@@ -9,7 +9,7 @@ import torch.utils.model_zoo as model_zoo
 from src.models.tresnet.layers.adaptive_avgmax_pool import SelectAdaptivePool2d
 from src.models.tresnet.layers.general_layers import SEModule
 from src.models.tresnet.tresnet import bottleneck_head
-from fastai2.torch_core import num_distrib, rank_distrib
+from fastai.torch_core import num_distrib, rank_distrib
 import math
 import logging
 
